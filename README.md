@@ -1,3 +1,6 @@
+# Partial Sums Locator (Incomplete)
+The add_on.py is added to collect the list of partial sums associated with each PE from the best mapping point obtained by the tool
+
 # CNN-blocking
 Tool for optimize CNN blocking
 
