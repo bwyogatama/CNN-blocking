@@ -1,0 +1,19 @@
+{
+    "schedule_hint": {
+        "FX": {
+           "level0":{
+               "order":0,
+               "blocking_size":1,
+               "partitioning_size":5
+           }
+        },
+        "FY": {
+           "level0":{
+               "order":1,
+               "blocking_size":1,
+               "partitioning_size":5 
+           }
+        }
+    },
+    "partition_loops": ["IC","OC"]
+}
