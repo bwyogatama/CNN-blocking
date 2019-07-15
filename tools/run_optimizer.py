@@ -3,7 +3,13 @@ import numpy as np
 import argparse
 import math
 import time
+
+
+import sys
+sys.path.append('/Users/BWYogatama/OneDrive/robust_cnn/CNN-blocking-dev2')
 import cnn_mapping as cm
+
+
 
 def basic_optimizer(arch_info, network_info, schedule_info=None, basic=False, verbose=False):    
 
@@ -17,6 +23,9 @@ def basic_optimizer(arch_info, network_info, schedule_info=None, basic=False, ve
         print "best energy: ", opt_result[0]
         print "cost for each level: ", level_costs #TODO
         print "best schedule: ", cm.utils.print_loop_nest(opt_result[1])
+
+    cm.add_on.get_PE_values(opt_result[1],resource)
+
     return opt_result[0]
 
 
@@ -85,6 +94,8 @@ def dataflow_explore_optimizer(arch_info, network_info, file_name, verbose=False
 
 
 if __name__ == "__main__":
+    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("type", choices=["basic", "mem_explore", "dataflow_explore"], help="optimizer type")
     parser.add_argument("arch", help="architecture specification")
