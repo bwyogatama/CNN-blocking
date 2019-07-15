@@ -7,8 +7,8 @@ class Cache(object):
 
     def __init__(self, num_levels, size):
         self.num_levels = num_levels
-        self.cache_map = [dict() for x in range(num_levels)]
-        self.cache_queue = [deque() for i in range(num_levels)]
+        self.cache_map = [dict() for x in range(num_levels)] #list of dictionary
+        self.cache_queue = [deque() for i in range(num_levels)] #list of queue
         self.size = size
 
     def read_cache(self, level, data):

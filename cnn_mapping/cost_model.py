@@ -42,6 +42,8 @@ def get_if_access(level, point, layer, mac_capacity = 1):
     At the same buffer level, if the other loops are outside of the innermost
     loop of ifmap-related loops, their blocking factors and parallelism counts
     at this level should also contribute to the number of accesses.
+
+    ifmap-related loops = ex_order_index
     '''
 
     if level == 0 and mac_capacity == 0:
@@ -309,6 +311,7 @@ def get_array_access_and_cost(level, para, access_list, point):
  
     [if_block_access, of_block_access, fl_block_access] = access_list
     partitions = zip(*point.loop_partitionings)[level]
+    
     para_dim = point.para_loop_dim[level]
 
     partitions_nearest = [1,]*le.NUM
@@ -400,7 +403,10 @@ def get_access(point, layer, resource):
 
     #para_mode = [e.access_mode for i, e in enumerate(resource.paras) if e.access_mode != 0]
     para_mode_level = [i for i, e in enumerate(resource.paras) if e.access_mode != 0]
+
+    #access_mode = 1 berarti bisa mengakses neighborhood PE
     partitions = zip(*point.loop_partitionings)
+    
     array_costs = []
     if para_mode_level:
         # access at array level 
@@ -740,6 +746,8 @@ def get_cost(resource, point, layer, verbose=False):
 
     total_access_cost = get_total_access_cost(resource, array_cost)
     assert len(total_access_cost) == len(access_list)
+
+    #bedanya total_access_cost dan access_list
 
     total_cost = 0.0
     for i in xrange(len(total_access_cost)):

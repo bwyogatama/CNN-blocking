@@ -54,8 +54,11 @@ def extract_schedule_info(schedule_file, num_levels):
     schedule = {}
     hint = data["schedule_hint"]
     schedule_hint = {}
+
+    #schedule_hint adalah dictionary yang memiliki key berupa indeks loop dan value berupa 2D array level dan informasi order, blocking size, dan partitioning
+    #hint adalah dictionary hasil extraksi json string
     for loop in hint:
-        schedule_hint[le.loop_table[loop]] = [None,]*num_levels
+        schedule_hint[le.loop_table[loop]] = [None,]*num_levels #menginisialisasi list sebanyak num_levels yang berisi None
         for level in hint[loop]:
             level_index = int(level.lstrip('level'))
             schedule_hint[le.loop_table[loop]][level_index] = [None,]*3

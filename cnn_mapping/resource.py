@@ -31,7 +31,7 @@ class Parallelism(namedtuple('Parallelism',
 
     Parallelism attributes include count and access_mode.
 
-    Count is the number of parallel units. 
+    Count is the number of parallel units. -> jumlah PE
 
     Access mode is the mode of access non-private data, 
     for example, whether access neighborhood PE, or 
@@ -91,10 +91,12 @@ class Resource(object):
         if not array_dim:
             array_dim = [2 if e != 1 else 1 for e in para_count_list]
 
+        '''diasumsikan array 2D dengan lebar akar dari jumlah PE'''
+
         array_width = [para_count_list[i] if array_dim[i] == 1 else int(math.sqrt(para_count_list[i])) for i in xrange(self.num_levels)]
  
         self.paras = [Parallelism(*t) for t in zip(para_count_list, \
-            partition_mode, array_access_costs, array_dim, array_width)]
+            partition_mode, array_access_costs, array_dim, array_width)] #berindeks level
         self.access_cost = buf_access_cost_list
         self.mac_capacity = mac_capacity
         self.array_access_cost = array_access_cost
@@ -103,6 +105,7 @@ class Resource(object):
         self.replication = replication
 
     @classmethod
+
     def arch(cls, info):
         return cls(info["capacity"], info["access_cost"], info["static_cost"],
                         info["parallel_count"], info["mac_capacity"], info["parallel_mode"],

@@ -27,6 +27,9 @@ class Schedule(object):
                         hint_para_index[level].append(loop)
         self.hint_para_index = hint_para_index
 
+        '''schedule_hint adalah dictionary yang memiliki key berupa indeks loop dan value berupa 2D array level dan informasi order, blocking size, dan partitioning'''
+        '''hint para index adalah dictionary yang memiliki key berupa level dan value berupa list loop yang diparalelisasi pada level tersebut'''
+
     @classmethod
     def schedule(cls, info):
         return cls(info["schedule_hint"], info["partition_loops"]) 

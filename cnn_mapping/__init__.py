@@ -12,3 +12,4 @@ from . import extract_input
 from . import cost_model
 from . import mapping_point_generator
 from . import optimizer
+from . import add_on

@@ -21,6 +21,7 @@ import loop_enum as le
 import buffer_enum as be
 import utils
 
+#mengalikan semua unroll factor (partitioning size) pada semua loop pada satu level
 def get_hinted_para(layer, level, hint):
     assert hint    
 
@@ -142,11 +143,12 @@ def order_generator_function(num_loops, num_levels):
     for order in itertools.product(*all_order_permutations):
         yield zip(*order)
 
-
+# mencari list of factor dari suatu bilangan n
 def factors(n):    
     return set(reduce(list.__add__, 
                 ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
 
+#mencari list of factor dari suatu bilangan n dengan range 1-end
 def bounded_factor(n, end):
     l = []
     for i in xrange(1, int(n**0.5)+1):
@@ -158,6 +160,11 @@ def bounded_factor(n, end):
     s.remove(1)
     return s 
 
+# tile_permutations awalnya list kosong
+# fungsi ini memanggil
+# curr_loop_tile awalnya list kosong
+# curr_level awalnya 0
+# n awalnya loop_extent atau size pada loop variable tertentu
 def recursive_tile(tile_permutations, curr_loop_tile, n, curr_level, num_level):
     if curr_level == num_level - 1:
         curr_loop_tile.append(n)
@@ -177,6 +184,9 @@ def loop_tile_with_para_hint(tile_permutations, loop_extent, num_level, loop_hin
         if i >= para_hint :
             recursive_tile(tile_permutations, [i], loop_extent/i, 1, num_level)         
   
+#loop_hint adalah 2D array level terhadap informasi order, blocking size, dan partitioning
+#loop_extent adalah loop variable size
+#tile permutations initially empty
 def loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint):
     #TODO support more than 1 level of para hint
     for level in xrange(num_level):
@@ -190,7 +200,6 @@ def loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint):
     #para_hint = 1 if loop_hint[loop_hint_level][2] == None else loop_hint[loop_hint_level][2]
     blocking_factor = blocking_hint * para_hint
 
-   
     pre_tile_permutations = [] 
     if loop_hint_level == 0 :
         pre_tile_permutations.append([])
@@ -214,7 +223,7 @@ def loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint):
                     recursive_tile(tile_permutations, new_pre_tile,
                         (loop_extent+new_blocking_accum-1)//new_blocking_accum, loop_hint_level+1, num_level)
                      
-
+# loop extent adalah loop variable size
 def loop_tile(loop_extent, num_level, loop_hint=None):
     
     tile_permutations = []
@@ -222,6 +231,8 @@ def loop_tile(loop_extent, num_level, loop_hint=None):
         recursive_tile(tile_permutations, [], loop_extent, 0, num_level)   
     else:
         loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint)
+
+    #tile_permutations adalah list yang berisi semua kombinasi blocking untuk 1 loop variable untuk semua level
 
     return tile_permutations
 
@@ -259,6 +270,8 @@ def blocking_generator_function(resource, layer, schedule=None ,verbose=False):
 
     hint = schedule.schedule_hint if schedule != None else None
 
+    #hint adalah dictionary dengan key berupa indeks loop dan value berupa 2D array level terhadap informasi order, blocking size, dan partitioning
+
     num_levels = resource.buffer_levels()
 
     all_tile_permutations = []
@@ -266,13 +279,17 @@ def blocking_generator_function(resource, layer, schedule=None ,verbose=False):
         loop_hint = hint[i] if hint and i in hint else None
         all_tile_permutations.append(loop_tile(layer.sizes[i], num_levels, loop_hint))
 
+    #all_tile_permutations adalah list yang berindeks loop indeks dan berisi semua kemungkinan blocking combination untuk setiap loop indeks
+    #all_tile_permutations = [[semua kombinasi blocking loop var 1],[semua kombinasi blocking loop var 2],...]
+    #satu kombinasi blocking loop var n = [blocking level 2],[blocking level 1],[blocking level 0]
+    #apabila level n paralel sebanyak x, maka diasumsikan level n-1 paralel sebanyak x juga!
     '''
     Generate all possible loop tilings for all loops,
     then transform the data organizations to match with loop_blocking_list 
     Use cache to buffer the valid status of blocking for the first level
     '''
     blocking_cache = Cache(1, 100)
-    for tile in itertools.product(*all_tile_permutations):
+    for tile in itertools.product(*all_tile_permutations): #itertools.product menghasilkan semua kombinasi blocking combination dari setiap loop variables
         #TODO here the generated is a list of lists, not a list of tuples
         #if cost_model.valid_blocking_size(resource, dummy_mapping_point, layer):
         if opt_valid_blocking(blocking_cache, resource, layer, tile):
@@ -362,7 +379,13 @@ def current_level_partition_blocking_1d(loop_tiles, slb, para_count, layer, u_th
         return current_level_partition_blocking_1d_no_replication(loop_tiles, slb, para_count, layer)
      
 
-
+#para_count=array width
+#cur_loop=loop yang akan diparalelisasi di dimensi ini
+#partition_loops = daftar loop yang akan diunroll pada dimensi yang sama (direplikasi)
+#cur_para_factor = parallel blocking factor
+#loop_tiles -> 1 tiles (kumpulan PE) isinya berapa PE (dilist semua kemungkinannya), listnya berindeks nomor loop (loop_tiles untuk 1 level dan 1 kombinasi blocking)
+#jumlah PE dalam loop tiles harus merupakan factor dari blocking factor supaya tetap bisa memenuhi syarat blocking hint dari schedule
+#slp adalah list yang berindeks loop indeks dan berisi berapa PE yang akan memproses loop tersebut sekaligus
 def current_level_partition_blocking_1d_with_hint(loop_tiles, slb, para_count, layer, level, cur_loop, schedule, u_threshold):
 
     hint = schedule.schedule_hint
@@ -380,13 +403,23 @@ def current_level_partition_blocking_1d_with_hint(loop_tiles, slb, para_count, l
  
         return [para_permutation, para_dim_permutation]
 
+    #para_permutation berisi semua kombinasi nilai paralelisasi untuk 1 kombinasi blocking pada 1 level
+    #paralelisasi merupakan jumlah paralel pada loop tersebut, paralelisasi sebesar n berarti n parfor
+    #para_permutation memiliki format [[1,1,1,12,1,1,1] -> kombinasi nilai paralelisasi 1,[kombinasi nilai paralelisasi 2], ...]
+    #para_dim_permutation berisi semua loop yang terlibat dalam para_permutation
+    #para_dim_permutation pada elemen i berisi semua loop yang terlibat dalam para_permutation pada elemen i (elemen yang sama)
+
     for l0 in partition_loops:
+        #print l0
+        #print loop_tiles[l0]
         if l0 == cur_loop:
             for f in loop_tiles[cur_loop]:
                 if f*cur_para_factor >= para_count*u_threshold and f*cur_para_factor <= para_count:
+                    #slp merupakan list dengan panjang sebanyak jumlah loop variable, nilai default 1 untuk setiap elemen
+                    #nilai slp pada elemen i akan diganti dengan nilai parallelisasi loop variable i (jumlah PE yang memproses loop variable i pada dimensi ini (1D))
                     slp = [1,]*le.NUM
-                    slp[cur_loop] = f*cur_para_factor
-                    para_index = [cur_loop]
+                    slp[cur_loop] = f*cur_para_factor #berisi factor
+                    para_index = [cur_loop] #berisi loop
                     para_permutation.append(slp)
                     para_dim_permutation.append([para_index])
         else:    
@@ -423,6 +456,9 @@ def current_level_partition_blocking_2d_with_hint(loop_tiles, slb, para_count, l
         level, schedule.hint_para_index[level][1], schedule, u_threshold)
     para_index_generator = para_index_generator_function_with_hint([para_index_perm_1d0, para_index_perm_1d1])
 
+    #print [para_index_perm_1d0, para_index_perm_1d1]
+    #print [para_perm_1d0, para_perm_1d1]
+
     for slps in itertools.product(*[para_perm_1d0, para_perm_1d1]):
         slp0, slp1 = slps 
         para_index0, para_index1 = para_index_generator.next()
@@ -431,6 +467,7 @@ def current_level_partition_blocking_2d_with_hint(loop_tiles, slb, para_count, l
             para_permutation.append(combined_slp)
             combined_dim = [para_index0[0], para_index1[0]]
             para_dim_permutation.append(combined_dim)
+
 
     return [para_permutation, para_dim_permutation]
     
@@ -455,6 +492,9 @@ def current_level_partition_blocking_2d(loop_tiles, slb, para_count, layer, u_th
 
     return [para_permutation, para_dim_permutation]
    
+# slb = loop blocking reshape pada satu level untuk semua loop
+# u_threshold = resource utilization threshold
+# replication = true or false
 def current_level_partition_blocking(slb, para, layer, u_threshold, replication):
 
     para_count = para.array_width
@@ -468,6 +508,8 @@ def current_level_partition_blocking(slb, para, layer, u_threshold, replication)
     else: 
         return current_level_partition_blocking_2d(loop_tiles, slb, para_count, layer, u_threshold, replication)
 
+#bounded_factor memberikan factor dari suatu bilangan pada rentang tertentu
+#slb adalah loop blocking reshape untuk 1 level
 def current_level_partition_blocking_with_hint(slb, para, layer, level, schedule, u_threshold):
     para_count = para.array_width
     loop_tiles = []
@@ -479,6 +521,9 @@ def current_level_partition_blocking_with_hint(slb, para, layer, level, schedule
         assert len(schedule.hint_para_index[level]) <= 1, "do not support unrolling more than 2 loops in the schedule hint"
         return current_level_partition_blocking_1d_with_hint(loop_tiles, slb, para_count, layer, level, schedule.hint_para_index[level][0], schedule, u_threshold)
     else: 
+        #print
+        #print len(schedule.hint_para_index[level])
+        #print
         assert len(schedule.hint_para_index[level]) <= 2, "do not support unrolling more than 2 loops in the schedule hint"
         return current_level_partition_blocking_2d_with_hint(loop_tiles, slb, para_count, layer, level, schedule, u_threshold)
 
@@ -487,12 +532,14 @@ def para_dim_generator_function(para_dim_permutations):
     for para_dim in itertools.product(*para_dim_permutations) :
         yield para_dim
 
-
+#lp = loop blocking reshape
+#loop_blocking_reshape (hanya untuk 1 kombinasi loop blocking) berbentuk [(blocking loop var 1 level 2, blocking loop var 2 level 2, blocking loop var 3 level 2, ...),(blocking loop var 1 level 1, blocking loop var 2 level 1, ...), ...]
 def parallel_blocking_generator_function(lp, resource, layer, schedule=None):
     num_level = resource.buffer_levels()
 
-    para_permutations = []
-    para_dim_permutations = []
+    para_permutations = [] #ini list yang berisi berapa parallel element untuk setiap loop indeks di setiap level
+    para_dim_permutations = [] #ini list 
+
     for level in xrange(num_level):
         if resource.paras[level].count == 1:
             para_permutations.append([[1]*le.NUM])  
@@ -508,6 +555,9 @@ def parallel_blocking_generator_function(lp, resource, layer, schedule=None):
             else:
                 hinted_para = get_hinted_para(layer, level, schedule.schedule_hint)
                 assert hinted_para <= para.count, "total parallelism in schedule hint exceeds the maximum parallelism"
+                #para_count berbeda dengan para.count, para_count = array width sementara para.count = jumlah PE
+                #current_level_partition_blocking_with_hint memperhitungkan partitioning_loops dan tiling, tiling minimum saja (2 tile) 2x lipat semula, sehingga membutuhkan 2x lebih banyak PE dari semula
+                #kalo tiling minimum saja tidak bisa diapply (karena jumlah PE tidak sampai 2x lipat hinted_para), maka lakukan get hinted partitionoing -> straightforward
                 if  para.count >= hinted_para * 2 :
                     new_para_count = para.count/hinted_para
                     para_permutation, para_dim_permutation = current_level_partition_blocking_with_hint(lp[level], para, layer, level, schedule, resource.utilization_threshold)
@@ -518,9 +568,19 @@ def parallel_blocking_generator_function(lp, resource, layer, schedule=None):
                     para_permutations.append(para_permutation)
                     para_dim_permutations.append(para_dim_permutation)
 
+    '''
+    print
+    print para_permutations
+    print para_dim_permutations
+    print
+    '''
+    
 
-    #print para_permutations
-    #print para_dim_permutations
+    #para_permutation ini list yang berindeks level (untuk 1 macam kombinasi loop blocking), dan berelemen semua kemungkinan kombinasi paralelisasi pada level itu
+    #para_permutation = [[semua kombinasi paralelisasi level 1],[semua kombinasi paralelisasi level 2]]
+    #satu macam kombinasi paralelisasi = [paralelisasi loop 1, paralelisasi loop 2, paralelisasi loop 3, ...]
+    #para_dim_permutation ini list yang berindeks level (untuk 1 macam kombinasi loop blocking), dan berelemen semua loop yang diunroll pada setiap elemen para_permutations
+    #para_dim_permutation pada level 0 = [[l0,l1],[l1,l0],[l1],...]
 
     para_dim_generator = para_dim_generator_function(para_dim_permutations)
     for partition in itertools.product(*para_permutations) :
@@ -529,17 +589,23 @@ def parallel_blocking_generator_function(lp, resource, layer, schedule=None):
         yield [partition, para_dim]
 
 
+#paralelisasi adalah jumlah parallel pada loop tersebut, paralelisasi sebesar n berarti n parfor
+#partitioning_list berbentuk [(paralelisasi loop var 1 level 2, paralelisasi loop var 2 level 2,...),(paralelisasi loop var 1 level 1,...), ...] untuk 1 kombinasi
+#para_dim berbentuk ([loop apa saja yang diparalelisasi di level 2],[loop apa saja yang diparalelisasi di level 1],[loop apa saja yang diparalelisasi di level 0])
 def blocking_partitioning_generator_function(resource, layer, schedule, verbose=False):
     
     #loop_blocking_list and loop_partitioning_list generator.
     
     num_level = resource.buffer_levels()
     blocking_generator = blocking_generator_function(resource, layer, schedule, verbose)
+    #blocking_generator berbentuk [([kombinasi 1 loop var 1 untuk setiap level],[kombinasi 1 loop var 2 untuk setiap level],...),(),()]
 
     for loop_blocking in blocking_generator:
         #print "loop_blocking: ", loop_blocking
-        
+        #loop_blocking isinya cuman 1 kombinasi doang
+        #loop_blocking berbentuk ([blocking loop var 1 level2, blocking loop var 1 level1, ...],[blocking loop var 2 level 2, blocking loop var 2 level1, ...], ...)
         loop_blocking_reshape = zip(*loop_blocking)
+        #loop_blocking_reshape berbentuk [(blocking loop var 1 level 2, blocking loop var 2 level 2, blocking loop var 3 level 2, ...),(blocking loop var 1 level 1, blocking loop var 2 level 1, ...), ...]
         pb_generator = parallel_blocking_generator_function(loop_blocking_reshape, resource, layer, schedule)
         
         for pi in pb_generator:
@@ -550,15 +616,32 @@ def blocking_partitioning_generator_function(resource, layer, schedule, verbose=
                     for x, y in zip(loop_blocking_reshape[level], partition[level])])   #TODO check if using two maps with floordiv is faster 
             blocking_list = zip(*partitioned_loop_blocking_reshape)
             partitioning_list = zip(*partition)
+
+            #arti angka pada partition adalah n parfor
+            #arti angka pada loop_blocking_reshape adalah blocking factor
+            #arti angka pada blocking_list adalah setelah blocking disesuaikan dengan jumlah paralelisasi, 1 elemen itu menstream berapa kali (blocking per elemen)
+            #satu elemen itu belum tentu 1 PE, bisa aja 1 tile yang isinya beberapa PE
+            '''
+            print
+            print 'partition: ',partition
+            print 'partitioning_list: ',partitioning_list
+            print 'para_dim: ',para_dim
+            print 'loop_blocking_reshape: ',loop_blocking_reshape 
+            print 'partitioned_loop_blocking_reshape: ',partitioned_loop_blocking_reshape
+            print 'blocking_list: ',blocking_list
+            print
+            '''
             
-            #print partitioning_list, para_dim
+
             dummy_mapping_point = MappingPoint(None, blocking_list, partitioning_list, para_dim)
             if cost_model.valid_partitioning(resource, dummy_mapping_point, layer, verbose):
             #if cost_model.valid_mapping_point(resource, dummy_mapping_point, layer, verbose):
                 yield [blocking_list, partitioning_list, para_dim]
     
-        
-
+    
+#para_dim:  ([[0], [1], [3]], None, None)
+#partitioning_list:  [(1, 1, 1), (5, 1, 1), (1, 1, 1), (28, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1)]
+#blocking_list:  [(5, 1, 1), (1, 1, 1), (1, 1, 28), (1, 1, 1), (2, 16, 8), (3, 4, 4), (16, 1, 1)]
 def opt_get_best_loop_order(resource, layer, point, verbose=False):
     '''
     When no paritioning, the cost of the current level only depends on the current 
@@ -597,12 +680,13 @@ def opt_get_best_loop_order(resource, layer, point, verbose=False):
 
     return best_cost, zip(*best_loop_order)
 
+
 def opt_mapping_point_generator_function(resource, layer, schedule=None, verbose=False):
     '''
     Mapping point generator.
-
     Generates a new mapping point each iteration.
     '''
+
     num_levels = resource.buffer_levels()
     blocking_partitioning_generator = \
         blocking_partitioning_generator_function(resource, layer, schedule)
@@ -624,14 +708,27 @@ def opt_mapping_point_generator_function(resource, layer, schedule=None, verbose
         [blocking, partitioning, para_dim] = blocking_partitioning
         dummy_mapping_point = MappingPoint(None, blocking, partitioning, para_dim)
         #print "blocking_partitioning: ", blocking_partitioning
+
+        #para_dim:  ([[0], [1], [3]], None, None)
+        #partitioning_list:  [(1, 1, 1), (5, 1, 1), (1, 1, 1), (28, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1)]
+        #blocking_list:  [(5, 1, 1), (1, 1, 1), (1, 1, 28), (1, 1, 1), (2, 16, 8), (3, 4, 4), (16, 1, 1)]
+
         cost, loop_order = opt_get_best_loop_order(resource, layer, dummy_mapping_point, verbose)
+
+        #print cost
+
         if cost < smallest_cost:
             smallest_cost = cost
             best_mapping_point = MappingPoint(loop_order, blocking, partitioning, para_dim)
             if verbose:
+                print
                 print "best loop order: ", best_mapping_point.loop_orders
+                print "best blocking: ", best_mapping_point.loop_blockings
+                print "best partitioning: ", best_mapping_point.loop_partitionings
+                print "best para dim: ", best_mapping_point.para_loop_dim
                 print "Update smallest cost: ", smallest_cost
                 print "Update best shedule: ", utils.print_loop_nest(best_mapping_point)
+                print
     assert best_mapping_point, "No valid mapping point found."
     return smallest_cost, best_mapping_point
  
@@ -643,7 +740,9 @@ def mapping_point_generator_function(resource, layer, schedule=None, verbose=Fal
     Generates a new mapping point each iteration.
     '''
 
+    #mencari jumlah level memori
     num_levels = resource.buffer_levels()
+
 
     blocking_partitioning_generator = \
         blocking_partitioning_generator_function(resource, layer, schedule)
