@@ -155,3 +155,4 @@ See examples/schedule!
 
 - The Partial Sums Locator could only be used for a 2D PE Array with single level parallelism (the parallelization only occur on 1 memory level)
 - The speed of the Partial Sums Locator goes linear with the number of parallel units.
+- The result.h5 file could get pretty big in size depending on the networks
