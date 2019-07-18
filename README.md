@@ -147,9 +147,9 @@ Therefore, the matrix column represents different loop variables to identify the
 
 See examples/schedule!
 - This tool does not support multi-level parallelism (the parallelization only occur on 1 memory level)
-- Cannot specify more than 1 level of blocking for each loop variables
-- If (total parallel factor < 0.5 * total PE) then we cannot specify more than 2 loop variables in the scheduling (example: Google TPU)
-- If (total parallel factor > 0.5 * total PE) then we could specify more than 2 loop variables in the scheduling, but we need to specify the para_dim parameter manually later on (example: Eyeriss).
+- Cannot specify more than 1 level of {blocking, ordering, partitioning} for each loop variables
+- If (total parallel factor < 0.5 * total PE) then we cannot specify more than 2 loop variables in the same level (example: Google TPU)
+- If (total parallel factor > 0.5 * total PE) then we could specify more than 2 loop variables in the same level, but we need to specify the para_dim parameter manually later on (example: Eyeriss).
 
 ## Partial Sums Locator Restrictions
 
