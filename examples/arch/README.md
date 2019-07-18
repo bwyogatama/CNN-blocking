@@ -6,7 +6,7 @@ The format of the arch.json file is as below:
     "access_cost": "[1st level per access cost, 2nd level per access cost, ...]",
     "static_cost": "[1st level static cost, 2nd level static cost, ...]",
     "parallel_count": "[1st level parallel factor, 2nd level parallel factor, ...]",
-    "mac_capacity": "How many elements can be buffered by MAC",
+    "mac_capacity": "How many elements can be buffered by MAC" (usually 0),
     "parallel_mode": "[1st level parallel mode, 2nd level parallel mode]",
     "parallel_cost": "communication cost among adjacent parallel units (PEs)",
     "precision": "number of bits"
