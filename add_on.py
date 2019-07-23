@@ -122,18 +122,21 @@ def get_PE_values(point,resource):
 
 	finish = 0
 	while (finish==0):
-		coordinate = input("Enter Coordinate: ")
-		resultord = solveit(coordinate, array_width, para_dim_new, partitioning_reshape, cur_level, new_ordering1, num_loop)
-		#print resultord
-		resultord = tile_pi[tile_po.index(resultord)]
-		resultord = np.tile((resultord),(len(tile_bi),1))
-		tile_result = np.add(tile_bi,resultord)
+		coordinate = input("Enter PE Coordinate: ")
+		result = solveit(coordinate, array_width, para_dim_new, partitioning_reshape, cur_level, new_ordering1, num_loop)
+		#print result
+		if result[0] == None:
+			print ("The selected PE does not perform any computation, please enter another PE coordinate")
+			continue
+		result = tile_pi[tile_po.index(result)]
+		result = np.tile((result),(len(tile_bi),1))
+		tile_result = np.add(tile_bi,result)
 		print
 		print
 		print tile_result
 
-		h5f = h5py.File('result.h5', 'w')
-		h5f.create_dataset('result_1', data=tile_result)
+		h5f = h5py.File('result'+str(coordinate)+'.h5', 'w')
+		h5f.create_dataset('result', data=tile_result)
 		h5f.close()
 
 		temp = raw_input("Again? (y/n): ")
@@ -484,6 +487,10 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 
 		#print xblock
 		#print yblock
+
+		if xblock[0]==None or yblock[0]==None:
+			result = [None]
+			return result
 
 		result = [0,]*num_loop
 		resultord = [1,]*num_loop
