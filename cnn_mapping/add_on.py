@@ -506,6 +506,8 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 				result[para_dim[cur_level][0][i]] = yblock[i]-1
 
 			for j in xrange(len(para_dim[cur_level][1])):
+				print para_dim[cur_level][1]
+				print j
 				result[para_dim[cur_level][1][j]] = xblock[j]-1
 
 		#print result
