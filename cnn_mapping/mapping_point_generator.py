@@ -199,6 +199,7 @@ def loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint):
     para_hint = loop_hint[loop_hint_level][2]
     #para_hint = 1 if loop_hint[loop_hint_level][2] == None else loop_hint[loop_hint_level][2]
     blocking_factor = blocking_hint * para_hint
+    #print "blocking_factor: ", blocking_factor
 
     pre_tile_permutations = [] 
     if loop_hint_level == 0 :
@@ -206,15 +207,18 @@ def loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint):
     else : 
         for sub_extent in factors((loop_extent+blocking_factor-1)//blocking_factor):
             recursive_tile(pre_tile_permutations, [], sub_extent, 0, loop_hint_level)
+
+    #print "pre_tile_permutations: ",pre_tile_permutations
  
     for pre_tile in pre_tile_permutations:
         #TODO support not fixed blocking hint
-        if loop_hint[loop_hint_level][1]: 
+        if loop_hint[loop_hint_level][1] or loop_hint[loop_hint_level][2]: 
             pre_tile.append(blocking_factor)
             blocking_accum = reduce(mul, pre_tile, 1)
             recursive_tile(tile_permutations, pre_tile, (loop_extent+blocking_accum-1)//blocking_accum, loop_hint_level+1, num_level)
         else:
             blocking_accum = reduce(mul, pre_tile, 1)
+            #print "blocking_accum: ",blocking_accum
             for i in factors((loop_extent+blocking_accum-1)//blocking_accum):
                 if i >= para_hint:
                     new_pre_tile= copy.copy(pre_tile)
@@ -222,6 +226,9 @@ def loop_tile_with_hint(tile_permutations, loop_extent, num_level, loop_hint):
                     new_blocking_accum = blocking_accum * i
                     recursive_tile(tile_permutations, new_pre_tile,
                         (loop_extent+new_blocking_accum-1)//new_blocking_accum, loop_hint_level+1, num_level)
+            print "tile_permutations: ",tile_permutations
+            
+            
                      
 # loop extent adalah loop variable size
 def loop_tile(loop_extent, num_level, loop_hint=None):
@@ -601,7 +608,7 @@ def blocking_partitioning_generator_function(resource, layer, schedule, verbose=
     #blocking_generator berbentuk [([kombinasi 1 loop var 1 untuk setiap level],[kombinasi 1 loop var 2 untuk setiap level],...),(),()]
 
     for loop_blocking in blocking_generator:
-        #print "loop_blocking: ", loop_blocking
+        print "loop_blocking: ", loop_blocking
         #loop_blocking isinya cuman 1 kombinasi doang
         #loop_blocking berbentuk ([blocking loop var 1 level2, blocking loop var 1 level1, ...],[blocking loop var 2 level 2, blocking loop var 2 level1, ...], ...)
         loop_blocking_reshape = zip(*loop_blocking)
