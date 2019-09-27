@@ -120,6 +120,11 @@ def get_PE_values(point,resource):
 		para_dim_new = para_dim_reshape
 		print "para_dim = ",para_dim_new
 
+	#store tile_bi
+	h5f = h5py.File('result_tile_bi.h5', 'w')
+	h5f.create_dataset('result', data=tile_bi)
+	h5f.close()
+
 	finish = 0
 	while (finish==0):
 		coordinate = input("Enter PE Coordinate: ")
@@ -129,15 +134,22 @@ def get_PE_values(point,resource):
 			print ("The selected PE does not perform any computation, please enter another PE coordinate")
 			continue
 		result = tile_pi[tile_po.index(result)]
-		result = np.tile((result),(len(tile_bi),1))
-		tile_result = np.add(tile_bi,result)
-		print
-		print
-		print tile_result
 
-		h5f = h5py.File('result'+str(coordinate)+'.h5', 'w')
-		h5f.create_dataset('result', data=tile_result)
-		h5f.close()
+		#store result
+
+		h5fo = h5py.File('offset'+str(coordinate)+'.h5', 'w')
+		h5fo.create_dataset('offset', data=result)
+		h5fo.close()
+
+		#result = np.tile((result),(len(tile_bi),1))
+		#tile_result = np.add(tile_bi,result)
+		#print
+		#print
+		#print tile_result
+
+		#h5f = h5py.File('result'+str(coordinate)+'.h5', 'w')
+		#h5f.create_dataset('result', data=tile_result)
+		#h5f.close()
 
 		temp = raw_input("Again? (y/n): ")
 
