@@ -533,7 +533,7 @@ def valid_partition_number(resource, partitioning, level):
 
 def valid_partitioning_current_level(resource, point, layer, level, verbose=False):
     valid_size = fit_in_level(resource.buffer(level).capacity, \
-             get_bank_size(point, layer, level), True) 
+             get_bank_size(point, layer, level), False) #!!!!!!!!!!!!!! 
 
     return valid_size 
 

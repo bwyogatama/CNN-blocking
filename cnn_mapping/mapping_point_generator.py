@@ -608,7 +608,6 @@ def blocking_partitioning_generator_function(resource, layer, schedule, verbose=
     #blocking_generator berbentuk [([kombinasi 1 loop var 1 untuk setiap level],[kombinasi 1 loop var 2 untuk setiap level],...),(),()]
 
     for loop_blocking in blocking_generator:
-        #print "loop_blocking: ", loop_blocking
         #loop_blocking isinya cuman 1 kombinasi doang
         #loop_blocking berbentuk ([blocking loop var 1 level2, blocking loop var 1 level1, ...],[blocking loop var 2 level 2, blocking loop var 2 level1, ...], ...)
         loop_blocking_reshape = zip(*loop_blocking)
@@ -628,16 +627,15 @@ def blocking_partitioning_generator_function(resource, layer, schedule, verbose=
             #arti angka pada loop_blocking_reshape adalah blocking factor
             #arti angka pada blocking_list adalah setelah blocking disesuaikan dengan jumlah paralelisasi, 1 elemen itu menstream berapa kali (blocking per elemen)
             #satu elemen itu belum tentu 1 PE, bisa aja 1 tile yang isinya beberapa PE
-            '''
-            print
-            print 'partition: ',partition
-            print 'partitioning_list: ',partitioning_list
-            print 'para_dim: ',para_dim
-            print 'loop_blocking_reshape: ',loop_blocking_reshape 
-            print 'partitioned_loop_blocking_reshape: ',partitioned_loop_blocking_reshape
-            print 'blocking_list: ',blocking_list
-            print
-            '''
+            
+            #print
+            #print 'partition: ',partition
+            #print 'partitioning_list: ',partitioning_list
+            #print 'para_dim: ',para_dim
+            #print 'loop_blocking_reshape: ',loop_blocking_reshape 
+            #print 'partitioned_loop_blocking_reshape: ',partitioned_loop_blocking_reshape
+            #print 'blocking_list: ',blocking_list
+            #print
             
 
             dummy_mapping_point = MappingPoint(None, blocking_list, partitioning_list, para_dim)
@@ -702,6 +700,7 @@ def opt_mapping_point_generator_function(resource, layer, schedule=None, verbose
 
     smallest_cost = float("inf")
     best_mapping_point = None 
+
     for blocking_partitioning in blocking_partitioning_generator:
         ''' 
            dummy_mapping_point is used to validate the current blocking_partitioning,
@@ -714,7 +713,7 @@ def opt_mapping_point_generator_function(resource, layer, schedule=None, verbose
             print "Find best order for schedule: ", blocking_partitioning
         [blocking, partitioning, para_dim] = blocking_partitioning
         dummy_mapping_point = MappingPoint(None, blocking, partitioning, para_dim)
-        #print "blocking_partitioning: ", blocking_partitioning
+        
 
         #para_dim:  ([[0], [1], [3]], None, None)
         #partitioning_list:  [(1, 1, 1), (5, 1, 1), (1, 1, 1), (28, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1)]

@@ -41,6 +41,17 @@ def get_PE_values(point,resource):
 
 	arrange_bp(partitioning_reshape,blocking_reshape,order_reshape,para_dim_reshape,num_level,num_loop,new_partitioning,new_blocking)
 	make_ordering_dict(order_reshape,num_level,num_loop,new_ordering1, new_ordering2)
+
+	'''
+	print blocking_reshape
+	print partitioning_reshape
+	print order_reshape
+	print para_dim_reshape
+	print new_blocking
+	print new_partitioning
+	print new_ordering1
+	print new_ordering2
+	'''
 	
 	tile_blocking = []
 	tile_partitioning = []
@@ -56,6 +67,10 @@ def get_PE_values(point,resource):
 	opt_generate_loop_blocking(new_ordering1, new_blocking, new_partitioning, optim_block, 0, -1, num_loop, num_level, tile_blocking, tile_bi)
 	end = time.time()
 	print (end-start)
+
+	#print "tile_pi: ",tile_pi[len(tile_pi)-1]
+	#print "tile_po: ",tile_po[len(tile_po)-1]
+	#print "tile_bi: ",tile_bi[len(tile_bi)-1]
 
 	array_width= int(math.sqrt(resource.para_count_list[0]))
 	#print array_width
@@ -111,26 +126,39 @@ def get_PE_values(point,resource):
 	h5f.create_dataset('result', data = tile_bi)
 	h5f.close
 
-	for i in xrange(array_width):
-		for j in xrange(array_width):
-			# coordinate = input("Enter PE Coordinate: ")
-			coordinate = (i, j)
-			result = solveit(coordinate, array_width, para_dim_new, partitioning_reshape, cur_level, new_ordering1, num_loop)
-			if result[0] == None:
-				continue
-			result = tile_pi[tile_po.index(result)]
-			'''
-			result = np.tile((result),(len(tile_bi),1))
-			tile_result = np.add(tile_bi,result)
-			print
-			print
-			print tile_result
-			'''
-			#store result
-			
-			h5f = h5py.File('offset'+str(coordinate)+'.h5', 'w')
-			h5f.create_dataset('result', data=result)
-			h5f.close()
+
+	finish = 0
+	while (finish==0):
+		coordinate = input("Enter PE Coordinate: ")
+		result = solveit(coordinate, array_width, para_dim_new, partitioning_reshape, cur_level, new_ordering1, num_loop)
+		#print result
+		if result[0] == None:
+			print ("The selected PE does not perform any computation, please enter another PE coordinate")
+			continue
+		result = tile_pi[tile_po.index(result)]
+		'''
+		result = np.tile((result),(len(tile_bi),1))
+		tile_result = np.add(tile_bi,result)
+		print
+		print
+		print tile_result
+		'''
+
+		#store result
+		
+		h5f = h5py.File('offset'+str(coordinate)+'.h5', 'w')
+		h5f.create_dataset('result', data=result)
+		h5f.close()
+
+		temp = raw_input("Again? (y/n): ")
+
+		if temp=='y':
+			finish=0
+		elif temp=='n':
+			finish=1
+		else:
+			print("Incorrect input")
+			finish=0	
 
 	del tile_bi
 	del tile_pi
@@ -383,6 +411,9 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 				blist.append(old_partitioning[cur_level][para_dim[cur_level][1][i]])
 				blistmul = blistmul*old_partitioning[cur_level][para_dim[cur_level][1][i]]
 
+		#print alist
+		#print blist
+
 		if alistmul>=blistmul:
 			xlistmul = alistmul
 			ylistmul = blistmul
@@ -394,6 +425,8 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 			xlist = copy.copy(blist)
 			ylist = copy.copy(alist)
 
+		#print xlist
+		#print ylist
 		#sort the y axis
 
 		r = ceildiv(xlistmul,array_width)
@@ -428,9 +461,11 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 		yblock = yblock[::-1]
 
 		#transformation
+		#print importanty
 
 		coordinateT = coordinate[1] + array_width*(importanty-1)
 
+		#print coordinateT
 		#sort the x axis
 
 		xlistr = copy.copy(xlist[::-1])
@@ -440,6 +475,8 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 		for i in xrange(len(xlist)-1):
 			for j in xrange(i+1,len(xlist)):
 				xlistsum[i] = xlistsum[i]*xlistr[j]
+
+		#print xlistsum
 
 		initx = coordinateT+1
 
@@ -457,6 +494,9 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 			xblock.append(None)
 
 		xblock = xblock[::-1]
+
+		#print xblock
+		#print yblock
 
 		if xblock[0]==None or yblock[0]==None:
 			result = [None]
@@ -477,6 +517,8 @@ def solveit(coordinate, array_width, para_dim, old_partitioning, cur_level, orde
 
 			for j in xrange(len(para_dim[cur_level][1])):
 				result[para_dim[cur_level][1][j]] = xblock[j]-1
+
+		#print result
 
 		for i in xrange(num_loop):
 			resultord[num_loop-1-order[i][cur_level]] = result[i]
